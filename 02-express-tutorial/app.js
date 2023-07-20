@@ -2,16 +2,68 @@ const express = require("express");
 const path = require('path');
 const app = express(); 
 const { products } = require('./data');
+const cookieParser = require("cookie-parser");
 
-app.use(express.static('./public'));
+const logger = function(req, res, next) {
+  console.log(`Method: ${req.method}`)
+  console.log(`URL: ${req.url}`)
+  console.log(`Time: ${new Date()}`);
+  next()
+};
 
-// api implementation
+// for Front-end
+app.use(express.static('./methods-public'));
+
+// cookies (additional assignment)
+app.use(cookieParser());
+// for POST
+app.use(express.urlencoded({ extended: false }));
+app.use(express.json());
+
+const auth = function(req, res, next) {
+  if (req.cookies.name) {
+    req.user = req.cookies.name;
+    next();
+  }
+  res.status(401).json({message: "unauthorized"});
+};
+
+app.post('/logon', (req, res) => {
+  const { name } = req.body;
+
+  if (name) { // if user exists
+    res.cookie("name:", name);
+    res.status(201).json({message:`Hello ${name}`}); // Hello User
+  }
+  res.status(400).json({message:"ERROR: Name is required"});
+}); 
+
+app.delete('/logoff', (req, res) => {
+  res.clearCookie("name");
+  res.status(200).json({message: "User is logged off"});
+});
+
+app.get('/test', auth, (req, res) => {
+  res.status(200).json({message: `Welcome, ${req.user}`});
+});
+// end of optional assignment
+
+
+const peopleRouter = require('./routes/people');
+app.use('/api/v1/people', peopleRouter);
+
+// logger confirmation if it works (it does )
+app.get('/', logger, (req, res) => {
+  res.json({logger})
+});
+
+// api implementation (GET)
 app.get('/api/v1/test', (req, res) => {
   res.json({message: 'It worked!' });
 });
 
 app.get('/api/v1/products', (req, res) => {
-  res.json(products)
+  res.json(products);
 });
 
 app.get('/api/v1/products/:productID', (req, res) => {
@@ -20,7 +72,7 @@ app.get('/api/v1/products/:productID', (req, res) => {
   if (!product) { // if the product does not exist 
     return res.status(404).json({message: "Unfortunately, that product was not found :("});
   }
-  res.json(product)
+  res.json(product);
 });
 
 app.get('/api/v1/query', (req, res) => {  
@@ -41,33 +93,25 @@ app.get('/api/v1/query', (req, res) => {
     });
   }
   res.json(filtered); // showcases the products that were filtered
-})
+});
 
 // end of api implementation
 
 app.get('/', (req, res) => {
   console.log('User is on the Home Page')
   res.status(200).send('Home Page')
-})
+});
 
 app.get('/about', (req, res) => {
   res.status(200).send('About Page')
-})
+});
 
 app.all('*', (req, res) => {
   res.status(404).send('<h1>The resource is not found</h1>')
-})
+});
 
 app.listen(5000, () => {
   console.log('Server is listening on port 5000')
-})
-
-// app.get
-// app.post
-// app.put
-// app.delete
-// app.all
-// app.use
-// app.listen
+});
 
 console.log('Express Tutorial')
